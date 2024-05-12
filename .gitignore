@@ -1,0 +1,9 @@
+.git
+**.vscode
+**.vault
+**_render
+**test
+**backup
+**.idea
+**secrets
+**regex
