@@ -1,30 +1,40 @@
 #!/bin/bash
-if test -d /etc/nginx/sites-available && test -d /etc/nginx/sites-enabled  ; then
-    echo "-------------------------------"
+
+ng_fld_s_av=/etc/nginx/sites-available
+ng_fld_s_en=/etc/nginx/sites-enabled
+
+[ -z "$1" ] && {
+  echo "Use script: n2ensite site_config1 site_config2 ..."
+  exit 1
+}
+if test -d $ng_fld_s_av && test -d $ng_fld_s_en; then
+  echo "-------------------------------"
 else
-    echo "Error!! Folders /etc/nginx/sites-available & etc/nginx/sites-enabled not found."
-    exit 0
+  echo "Error. Folders ${ng_fld_s_av} or(and) ${ng_fld_s_en} not found"
+  exit 1
 fi
-
-avail=/etc/nginx/sites-enabled/$1.conf
-enabled=/etc/nginx/sites-enabled
-site=`ls /etc/nginx/sites-enabled`
-
-if [ "$#" != "1" ]; then
-    echo "Use script: n2dissite site_config"
-    echo -e "\nEnabled configs: \n$site"
-    exit 0
-else
-    if test -e $avail; then
-	rm  $avail
-    else
-	echo -e "$avail config does not exist! Exiting"
-	exit 0
-    fi
-    if test -e $enabled/$1.conf; then
-	echo "Error!! Could not remove $avail config!"
-    else
-	echo  -e "Success! $avail has been removed!\nsudo systemctl reload nginx"
-        exit 0
-    fi
+is_restart_nginx=0 # флаг, требуется ли перезагрузить nginx.service
+for i in "$@"; do
+  if [[ "${i: -5}" != '.conf' ]]; then
+    current_conf="${i}.conf"
+  else
+    current_conf="${i}"
+  fi
+  # вычислить имя файла 
+  if ! echo "$current_conf" | grep -q '/'; then
+    current_link="${ng_fld_s_en}/${current_conf}"
+  else
+    current_link="${current_conf}"
+  fi
+  # удалить symlink
+  if [ -L "$current_link" ]; then
+    echo "Disable sites in file conf: $current_link"
+    rm "$current_link"
+    is_restart_nginx=1
+  else
+    echo "Skipping. Not enabled sites in file conf: $current_link"
+  fi
+done
+if [ "$is_restart_nginx" != "0" ]; then
+  echo "Now reload nginx server: sudo systemctl reload nginx"
 fi

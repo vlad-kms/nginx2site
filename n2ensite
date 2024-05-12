@@ -3,55 +3,38 @@
 ng_fld_s_av=/etc/nginx/sites-available
 ng_fld_s_en=/etc/nginx/sites-enabled
 
+[ -z "$1" ] && {
+  echo "Use script: n2ensite site_config1 site_config2 ..."
+  exit 1
+}
 if test -d $ng_fld_s_av && test -d $ng_fld_s_en; then
   echo "-------------------------------"
 else
   echo "Error. Folders ${ng_fld_s_av} or(and) ${ng_fld_s_en} not found"
   exit 1
 fi
-
-[ -z $1 ] && {
-  echo "Use script: n2ensite site_config1 site_config2 ..."
-  exit 1
-}
-
-cp=$#
-for i in $@; do
+is_restart_nginx=0
+for i in "$@"; do
   if [[ "${i: -5}" != '.conf' ]]; then
     current_conf="${i}.conf"
   else
     current_conf="${i}"
   fi
-  echo $current_conf
-  
+  current_file="${ng_fld_s_av}/${current_conf}"
+  current_link="${ng_fld_s_en}/${current_conf}"
+  if [ -f "$current_file" ]; then
+    echo "Enable sites in file conf: $current_file"
+    if [ -L "${current_link}" ]; then
+      echo "Skipping. Already enabled sites in file conf: $current_link"
+    else
+      ln -s "$current_file" "$ng_fld_s_en"
+      # флаг, что после всех операций надо перезагрузить nginx.service
+      is_restart_nginx=1
+    fi
+  else
+    echo "Skipping. Not exists file conf: $current_file"
+  fi
 done
-
-
-exit
-
-
-avail=/etc/nginx/sites-available/$1.conf
-enabled=/etc/nginx/sites-enabled
-
-site=`ls /etc/nginx/sites-available/`
-
-if [ "$#" != "1" ]; then
-  echo "Use script: n2ensite site_config1 site_config2 ..."
-  echo -e "\nAvailable configs:\n$site"
-  exit 0
-else
-  if test -e $avail; then
-    ln -s $avail $enabled
-  else
-    echo -e "$avail config does not exist! Please create one!\n$site"
-    exit 0
-  fi
-  if test -e $enabled/$1.conf; then
-    echo "Success!!"
-    echo "For test nginx config: sudo nginx -t"
-    echo "Now reload nginx server: sudo systemctl reload nginx"
-  else
-    #echo  -e "Config $avail does not exist!\nPlease see avail configs:\n$site"
-    exit 0
-  fi
+if [ "$is_restart_nginx" != "0" ]; then
+  echo "Now reload nginx server: sudo systemctl reload nginx"
 fi
