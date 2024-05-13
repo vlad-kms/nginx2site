@@ -3,6 +3,8 @@
 ng_fld_s_av=/etc/nginx/sites-available
 ng_fld_s_en=/etc/nginx/sites-enabled
 
+#echo "$@"
+
 [ -z "$1" ] && {
   echo "Use script: n2ensite site_config1 site_config2 ..."
   exit 1
@@ -13,28 +15,34 @@ else
   echo "Error. Folders ${ng_fld_s_av} or(and) ${ng_fld_s_en} not found"
   exit 1
 fi
+# pipe + args
+pp1=();pp1+=("$@")
+read -r -t .01 -a pp2
+pp1+=("${pp2[@]}")
+
 is_restart_nginx=0 # флаг, требуется ли перезагрузить nginx.service
-for i in "$@"; do
+num_all=0
+num_success=0
+for i in "${pp1[@]}"; do
+  #echo "$i"
   if [[ "${i: -5}" != '.conf' ]]; then
     current_conf="${i}.conf"
   else
     current_conf="${i}"
   fi
-  # вычислить имя файла 
-  if ! echo "$current_conf" | grep -q '/'; then
-    current_link="${ng_fld_s_en}/${current_conf}"
-  else
-    current_link="${current_conf}"
-  fi
-  # удалить symlink
-  if [ -L "$current_link" ]; then
-    echo "Disable sites in file conf: $current_link"
-    rm "$current_link"
+  while IFS= read -r -d '' file
+  do
+    num_all=$((num_all+1))
+    rm "$file"
+    echo "Disable sites in file conf: $file"
+    num_success=$((num_success+1))
     is_restart_nginx=1
-  else
-    echo "Skipping. Not enabled sites in file conf: $current_link"
-  fi
+  done <  <(find "$ng_fld_s_en" -name "$current_conf" -type l,f -print0)
 done
+# завершение и вывод предупреждающих сообщений
 if [ "$is_restart_nginx" != "0" ]; then
+  echo "All conf files: $num_all"
+  echo "Success: $num_success"
+  echo "For test nginx config: sudo nginx -t"
   echo "Now reload nginx server: sudo systemctl reload nginx"
 fi
