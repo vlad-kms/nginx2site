@@ -38,7 +38,7 @@ for i in "${pp1[@]}"; do
     num_success=$((num_success+1))
     # флаг, что после всех операций надо перезагрузить nginx.service
     is_restart_nginx=1
-  done <  <(find "$ng_fld_s_av" -name "$current_conf" -type l,f -print0)
+  done <  <(find "$ng_fld_s_av" -name "$current_conf" \( -type l -or -type f \) -print0)
 done
 # завершение и вывод предупреждающих сообщений
 if [ "$is_restart_nginx" != "0" ]; then
